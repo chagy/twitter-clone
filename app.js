@@ -1,17 +1,25 @@
-const express = require('express')
+const express = require("express");
 const app = express();
 const port = 3003;
-const middleware = require('./middleware')
+const middleware = require("./middleware");
+const path = require("path");
 
-const server = app.listen(port,() => console.log("Server listening on port "+port))
+const server = app.listen(port, () =>
+  console.log("Server listening on port " + port)
+);
 
-app.set("view engine","pug")
-app.set("views","views")
+app.use(express.static(path.join(__dirname, "public")));
 
-app.get("/",middleware.requireLogin,(req,res,next) => {
+app.set("view engine", "pug");
+app.set("views", "views");
 
-    var payload = {
-        pageTitle: "Home"
-    }
-    res.status(200).render("home",payload);
-})
+const loginRoute = require("./routes/loginRoutes");
+
+app.use("/login", loginRoute);
+
+app.get("/", middleware.requireLogin, (req, res, next) => {
+  var payload = {
+    pageTitle: "Home",
+  };
+  res.status(200).render("home", payload);
+});
