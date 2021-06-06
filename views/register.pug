@@ -3,7 +3,7 @@ extends layouts/login-layout.pug
 block content
     .loginContainer 
         h1 Register
-        form#reigsterForm(method="post",onsubmit="event.preventDefault(); validateForm();") 
+        form#registerForm(method="post",onsubmit="event.preventDefault(); validateForm();") 
 
             p.errorMessage #{errorMessage}
 
@@ -27,6 +27,6 @@ block content
             if(passwordField.value != passwordConfirmField.value){
                 alert("Passwords do not match. Please try again")
             }else{
-                //- form.submit();
+                form.submit();
             }
         }
