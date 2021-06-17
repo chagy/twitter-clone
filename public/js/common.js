@@ -1,3 +1,9 @@
+//Globals
+
+var cropper;
+var timer;
+var selectedUsers = [];
+
 $("#postTextarea, #replyTextarea").keyup((event) => {
   var textbox = $(event.target);
   var value = textbox.val().trim();
@@ -65,6 +71,18 @@ $("#deletePostModal").on("show.bs.modal", (event) => {
   $("#deletePostButton").data("id", postId);
 });
 
+$("#confirmPinModal").on("show.bs.modal", (event) => {
+  var button = $(event.relatedTarget);
+  var postId = getPostIdFromElement(button);
+  $("#pinPostButton").data("id", postId);
+});
+
+$("#unpinModal").on("show.bs.modal", (event) => {
+  var button = $(event.relatedTarget);
+  var postId = getPostIdFromElement(button);
+  $("#unpinPostButton").data("id", postId);
+});
+
 $("#deletePostButton").click((event) => {
   var postId = $(event.target).data("id");
 
@@ -78,6 +96,167 @@ $("#deletePostButton").click((event) => {
       }
       location.reload();
     },
+  });
+});
+
+$("#pinPostButton").click((event) => {
+  var postId = $(event.target).data("id");
+
+  $.ajax({
+    url: `/api/posts/${postId}`,
+    type: "PUT",
+    data: { pinned: true },
+    success: (data, status, xhr) => {
+      if (xhr.status != 204) {
+        alert("Pin post fail");
+        return;
+      }
+      location.reload();
+    },
+  });
+});
+
+$("#unpinPostButton").click((event) => {
+  var postId = $(event.target).data("id");
+
+  $.ajax({
+    url: `/api/posts/${postId}`,
+    type: "PUT",
+    data: { pinned: false },
+    success: (data, status, xhr) => {
+      if (xhr.status != 204) {
+        alert("Pin post fail");
+        return;
+      }
+      location.reload();
+    },
+  });
+});
+
+$("#filePhoto").change(function () {
+  if (this.files && this.files[0]) {
+    var reader = new FileReader();
+    reader.onload = (e) => {
+      var image = document.getElementById("imagePreview");
+      image.src = e.target.result;
+
+      if (cropper !== undefined) {
+        cropper.destroy();
+      }
+
+      cropper = new Cropper(image, {
+        aspectRatio: 1 / 1,
+        background: false,
+      });
+    };
+    reader.readAsDataURL(this.files[0]);
+  }
+});
+
+$("#coverPhoto").change(function () {
+  if (this.files && this.files[0]) {
+    var reader = new FileReader();
+    reader.onload = (e) => {
+      var image = document.getElementById("coverPreview");
+      image.src = e.target.result;
+
+      if (cropper !== undefined) {
+        cropper.destroy();
+      }
+
+      cropper = new Cropper(image, {
+        aspectRatio: 16 / 9,
+        background: false,
+      });
+    };
+    reader.readAsDataURL(this.files[0]);
+  }
+});
+
+$("#imageUploadButton").click(() => {
+  var canvas = cropper.getCroppedCanvas();
+
+  if (canvas == null) {
+    alert("Could not upload image. Make sure it is an image file.");
+    return;
+  }
+
+  canvas.toBlob((blob) => {
+    var formData = new FormData();
+    formData.append("croppedImage", blob);
+
+    $.ajax({
+      url: "/api/users/profilePicture",
+      type: "POST",
+      data: formData,
+      processData: false,
+      contentType: false,
+      success: function () {
+        location.reload();
+      },
+    });
+  });
+});
+
+$("#coverPhotoButton").click(() => {
+  var canvas = cropper.getCroppedCanvas();
+
+  if (canvas == null) {
+    alert("Could not upload image. Make sure it is an image file.");
+    return;
+  }
+
+  canvas.toBlob((blob) => {
+    var formData = new FormData();
+    formData.append("croppedImage", blob);
+
+    $.ajax({
+      url: "/api/users/coverPhoto",
+      type: "POST",
+      data: formData,
+      processData: false,
+      contentType: false,
+      success: function () {
+        location.reload();
+      },
+    });
+  });
+});
+
+$("#userSearchTextbox").keydown((event) => {
+  clearTimeout(timer);
+  var textbox = $(event.target);
+  var value = textbox.val();
+
+  if (value == "" && (event.which == 8 || event.keyCode == 8)) {
+    //remove user from selection
+    selectedUsers.pop();
+    updateSelectedUsersHtml();
+    $(".resultsContainer").html("");
+
+    if (selectedUsers.length == 0) {
+      $("#createChatButton").prop("disabled", true);
+    }
+    return;
+  }
+
+  timer = setTimeout(() => {
+    value = textbox.val().trim();
+
+    if (value == "") {
+      $(".resultsContainer").html("");
+    } else {
+      searchUsers(value);
+    }
+  }, 1000);
+});
+
+$("#createChatButton").click(() => {
+  var data = JSON.stringify(selectedUsers);
+
+  $.post("/api/chats", { users: data }, (chat) => {
+    if (!chat || !chat._id) return alert("Invalid response from server.");
+    window.location.href = `/messages/${chat._id}`;
   });
 });
 
@@ -130,6 +309,39 @@ $(document).on("click", ".post", (event) => {
   if (postId !== undefined && !element.is("button")) {
     window.location.href = "/post/" + postId;
   }
+});
+
+$(document).on("click", ".followButton", (event) => {
+  var button = $(event.target);
+  var userId = button.data().user;
+
+  $.ajax({
+    url: `/api/users/${userId}/follow`,
+    type: "PUT",
+    success: (data, status, xhr) => {
+      if (xhr.status == 404) {
+        alert("user not found");
+        return;
+      }
+
+      var difference = 1;
+      if (data.following && data.following.includes(userId)) {
+        button.addClass("following");
+        button.text("Following");
+      } else {
+        button.removeClass("following");
+        button.text("Follow");
+        difference = -1;
+      }
+
+      var followersLabel = $("#followersValue");
+      if (followersLabel.length != 0) {
+        var followersText = followersLabel.text();
+        followersText = parseInt(followersText);
+        followersLabel.text(followersText + difference);
+      }
+    },
+  });
 });
 
 function getPostIdFromElement(element) {
@@ -192,9 +404,20 @@ function createPostHtml(postData, largeFont = false) {
   }
 
   var buttons = "";
-
+  var pinnedPostText = "";
   if (postData.postedBy._id == userLoggedIn._id) {
-    buttons = `<button data-id="${postData._id}" data-toggle="modal" data-target="#deletePostModal"><i class="fas fa-times"></i></button>`;
+    var pinnedClass = "";
+    var dataTarget = "#confirmPinModal";
+    if (postData.pinned === true) {
+      pinnedClass = "active";
+      dataTarget = "#unpinModal";
+      pinnedPostText =
+        "<i class='fas fa-thumbtack'></i> <span>Pinned Post</span>";
+    }
+    buttons = `
+    <button class='pinButton ${pinnedClass}' data-id="${postData._id}" data-toggle="modal" data-target="${dataTarget}"><i class="fas fa-thumbtack"></i></button>
+    <button data-id="${postData._id}" data-toggle="modal" data-target="#deletePostModal"><i class="fas fa-times"></i></button>
+    `;
   }
 
   return `<div class='post ${largeFontClass}' data-id='${postData._id}'>
@@ -206,6 +429,7 @@ function createPostHtml(postData, largeFont = false) {
                         <img src='${postedBy.profilePic}'>
                     </div>
                     <div class='postContentContainer'>
+                        <div class='pinnedPostText'>${pinnedPostText}</div>
                         <div class='header'>
                             <a href='/profile/${
                               postedBy.username
@@ -302,4 +526,95 @@ function outputPostsWithReplies(results, container) {
     var html = createPostHtml(result);
     container.append(html);
   });
+}
+
+function outputUsers(results, container) {
+  container.html("");
+
+  results.forEach((result) => {
+    var html = createUserHtml(result, true);
+    container.append(html);
+  });
+
+  if (results.length == 0) {
+    container.append("<span class='noResults'>Not results found</span>");
+  }
+}
+
+function createUserHtml(userData, showFollowButton) {
+  var name = userData.firstName + " " + userData.lastName;
+  var isFollowing =
+    userLoggedIn.following && userLoggedIn.following.includes(userData._id);
+  var text = isFollowing ? "Following" : "Follow";
+  var buttonClass = isFollowing ? "followButton following" : "followButton";
+  var followButton = "";
+  if (showFollowButton && userLoggedIn._id != userData._id) {
+    followButton = `<div class='followButtonContainer'>
+                        <button class='${buttonClass}' data-user='${userData._id}'>${text}</button>
+                    </div>`;
+  }
+  return `
+        <div class='user'>
+            <div class='userImageContainer'>
+                <img src='${userData.profilePic}'>
+            </div>
+            <div class='userDetailsContainer'>
+                <div class='header'>
+                    <a href='/profile/${userData.username}'>${name}</a>
+                    <span class='username'>@${userData.username}</span>
+                </div>
+            </div>
+            ${followButton}
+        </div>
+    `;
+}
+
+function searchUsers(searchTerm) {
+  $.get("/api/users", { search: searchTerm }, (results) => {
+    outputSelectableUsers(results, $(".resultsContainer"));
+  });
+}
+
+function outputSelectableUsers(results, container) {
+  container.html("");
+
+  results.forEach((result) => {
+    if (
+      result._id == userLoggedIn._id ||
+      selectedUsers.some((u) => u._id == result._id)
+    ) {
+      return;
+    }
+    var html = createUserHtml(result, false);
+    var element = $(html);
+    element.click(() => userSelected(result));
+
+    container.append(element);
+  });
+
+  if (results.length == 0) {
+    container.append("<span class='noResults'>Not results found</span>");
+  }
+}
+
+function userSelected(user) {
+  console.log("test");
+  selectedUsers.push(user);
+  updateSelectedUsersHtml();
+  $("#userSearchTextbox").val("").focus();
+  $(".resultsContainer").html("");
+  $("#createChatButton").prop("disabled", false);
+}
+
+function updateSelectedUsersHtml() {
+  var elements = [];
+
+  selectedUsers.forEach((user) => {
+    var name = user.firstName + " " + user.lastName;
+    var userElement = $(`<span class='selectedUser'>${name}</span>`);
+    elements.push(userElement);
+  });
+
+  $(".selectedUser").remove();
+  $("#selectedUsers").prepend(elements);
 }

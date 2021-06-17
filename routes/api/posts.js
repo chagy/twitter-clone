@@ -8,20 +8,39 @@ const Post = require("../../schemas/PostSchema");
 app.use(bodyParser.urlencoded({ extended: false }));
 
 router.get("/", async (req, res, next) => {
-  //   Post.find()
-  //     .populate("postedBy")
-  //     .populate("retweetData")
-  //     .sort({ createdAt: -1 })
-  //     .then(async (results) => {
-  //       results = await User.populate(results, { path: "retweetData.postedBy" });
-  //       res.status(200).send(results);
-  //     })
-  //     .catch((error) => {
-  //       console.log(error);
-  //       res.sendStatus(400);
-  //     });
+  var searchObj = req.query;
 
-  var results = await getPosts({});
+  if (searchObj.isReply !== undefined) {
+    var isReply = searchObj.isReply == "true";
+    searchObj.replyTo = { $exists: isReply };
+    delete searchObj.isReply;
+  }
+
+  if (searchObj.search !== undefined) {
+    searchObj.content = { $regex: searchObj.search, $options: "i" };
+    delete searchObj.search;
+  }
+
+  if (searchObj.followingOnly !== undefined) {
+    var followingOnly = searchObj.followingOnly == "true";
+
+    if (followingOnly) {
+      var objectIds = [];
+      if (!req.session.user.following) {
+        req.session.user.following = [];
+      }
+      req.session.user.following.forEach((user) => {
+        objectIds.push(user);
+      });
+      objectIds.push(req.session.user._id);
+
+      searchObj.postedBy = { $in: objectIds };
+    }
+
+    delete searchObj.followingOnly;
+  }
+
+  var results = await getPosts(searchObj);
   res.status(200).send(results);
 });
 
@@ -155,6 +174,26 @@ router.delete("/:id", async (req, res, next) => {
   Post.findByIdAndDelete(req.params.id)
     .then(() => {
       res.sendStatus(202);
+    })
+    .catch((error) => {
+      console.log(error);
+      res.sendStatus(400);
+    });
+});
+
+router.put("/:id", async (req, res, next) => {
+  if (req.body.pinned !== undefined) {
+    await Post.updateMany(
+      { postedBy: req.session.user },
+      { pinned: false }
+    ).catch((error) => {
+      console.log(error);
+      res.sendStatus(400);
+    });
+  }
+  Post.findByIdAndUpdate(req.params.id, req.body)
+    .then(() => {
+      res.sendStatus(204);
     })
     .catch((error) => {
       console.log(error);
