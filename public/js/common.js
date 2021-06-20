@@ -618,3 +618,30 @@ function updateSelectedUsersHtml() {
   $(".selectedUser").remove();
   $("#selectedUsers").prepend(elements);
 }
+
+function getChatName(chatData) {
+  var chatName = chatData.chatName;
+
+  if (!chatName) {
+    var otherChatUsers = getOtherChatUsers(chatData.users);
+    var namesArray = otherChatUsers.map(
+      (user) => user.firstName + " " + user.lastName
+    );
+    chatName = namesArray.join(", ");
+  }
+
+  return chatName;
+}
+
+function getOtherChatUsers(users) {
+  if (users.length == 1) return users;
+
+  return users.filter((user) => user._id != userLoggedIn._id);
+}
+
+function messageReceived(newMessage) {
+  if ($(".chatContainer").length == 0) {
+  } else {
+    addChatMessageHtml(newMessage);
+  }
+}
