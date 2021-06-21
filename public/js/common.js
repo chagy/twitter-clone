@@ -4,6 +4,11 @@ var cropper;
 var timer;
 var selectedUsers = [];
 
+$(document).ready(() => {
+  refreshMessagesBadge();
+  refreshNotificationsBadge();
+});
+
 $("#postTextarea, #replyTextarea").keyup((event) => {
   var textbox = $(event.target);
   var value = textbox.val().trim();
@@ -344,6 +349,19 @@ $(document).on("click", ".followButton", (event) => {
   });
 });
 
+$(document).on("click", ".notification.active", function (event) {
+  var container = $(event.target);
+  var notificationId = container.data().id;
+
+  var href = container.attr("href");
+  event.preventDefault();
+
+  var callback = () => (window.location = href);
+  markNotificationsAsOpened(notificationId, callback);
+});
+
+$("#markNotificationsAsRead").click(() => markNotificationsAsOpened());
+
 function getPostIdFromElement(element) {
   var isRoot = element.hasClass("post");
   var rootElement = isRoot == true ? element : element.closest(".post");
@@ -644,4 +662,45 @@ function messageReceived(newMessage) {
   } else {
     addChatMessageHtml(newMessage);
   }
+
+  refreshMessagesBadge();
+}
+
+function markNotificationsAsOpened(notificationId = null, callback = null) {
+  if (callback == null) callback = () => location.reload();
+
+  var url =
+    notificationId != null
+      ? `/api/notifications/${notificationId}/markAsOpened`
+      : `/api/notifications/markAsOpened`;
+
+  $.ajax({
+    url: url,
+    type: "PUT",
+    success: () => callback(),
+  });
+}
+
+function refreshMessagesBadge() {
+  $.get("/api/chats", { ureadOnly: true }, (data) => {
+    var numResults = data.length;
+
+    if (numResults > 0) {
+      $("#messagesBadge").text(numResults).addClass("active");
+    } else {
+      $("#messagesBadge").text("").removeClass("active");
+    }
+  });
+}
+
+function refreshNotificationsBadge() {
+  $.get("/api/notifications", { ureadOnly: true }, (data) => {
+    var numResults = data.length;
+
+    if (numResults > 0) {
+      $("#notificationBadge").text(numResults).addClass("active");
+    } else {
+      $("#notificationBadge").text("").removeClass("active");
+    }
+  });
 }

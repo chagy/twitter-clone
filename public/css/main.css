@@ -21,6 +21,10 @@ body {
   font-weight: 300;
 }
 
+ul {
+  margin: 0;
+}
+
 * {
   outline: none !important;
 }
@@ -56,6 +60,7 @@ nav a {
   align-items: center;
   justify-content: center;
   color: #212529;
+  position: relative;
 }
 
 nav a.blue {
@@ -417,10 +422,6 @@ button span {
   object-fit: cover;
 }
 
-ul {
-  margin: 0px;
-}
-
 #imagePreview,
 #coverPreview {
   width: 100%;
@@ -677,7 +678,7 @@ ul {
   flex-shrink: 0;
 }
 
-.typingDost img,
+.typingDots img,
 .chatMessages .message .messageBody {
   background-color: #f1f0f0;
   padding: 6px 12px;
@@ -690,9 +691,9 @@ ul {
 }
 
 .typingDots {
-  padding: 0 var(--spacing);
+  padding: var(--spacing);
+  padding-bottom: 0;
   display: none;
-  background: transparent;
 }
 
 .chatMessages .message .messageContainer {
@@ -782,4 +783,34 @@ ul {
 .loadingSpinnerContainer img {
   width: 50%;
   max-width: 75px;
+}
+
+.resultListItem.active {
+  background-color: var(--blueBackground);
+}
+
+.resultListItem.notification * {
+  pointer-events: none;
+}
+
+#notificationBadge,
+#messagesBadge {
+  background-color: var(--red);
+  height: 25px;
+  width: 25px;
+  border-radius: 50%;
+  position: absolute;
+  top: 0;
+  right: 0;
+  color: white;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  visibility: hidden;
+}
+
+#notificationBadge.active,
+#messagesBadge.active {
+  visibility: visible;
 }
